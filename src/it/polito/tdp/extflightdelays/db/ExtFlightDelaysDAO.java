@@ -7,10 +7,12 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import it.polito.tdp.extflightdelays.model.Airline;
 import it.polito.tdp.extflightdelays.model.Airport;
 import it.polito.tdp.extflightdelays.model.Flight;
+import it.polito.tdp.extflightdelays.model.Rotta;
 
 public class ExtFlightDelaysDAO {
 
@@ -37,7 +39,7 @@ public class ExtFlightDelaysDAO {
 		}
 	}
 
-	public List<Airport> loadAllAirports() {
+	public List<Airport> loadAllAirports(Map<Integer, Airport> airportsIdMap) {
 		String sql = "SELECT * FROM airports";
 		List<Airport> result = new ArrayList<Airport>();
 
@@ -47,10 +49,16 @@ public class ExtFlightDelaysDAO {
 			ResultSet rs = st.executeQuery();
 
 			while (rs.next()) {
+				if(airportsIdMap.get(rs.getInt("ID"))== null) {
 				Airport airport = new Airport(rs.getInt("ID"), rs.getString("IATA_CODE"), rs.getString("AIRPORT"),
 						rs.getString("CITY"), rs.getString("STATE"), rs.getString("COUNTRY"), rs.getDouble("LATITUDE"),
 						rs.getDouble("LONGITUDE"), rs.getDouble("TIMEZONE_OFFSET"));
 				result.add(airport);
+				airportsIdMap.put(rs.getInt("ID"),airport);
+				}
+				else {
+					result.add(airportsIdMap.get(rs.getInt("ID")));
+				}
 			}
 
 			conn.close();
@@ -84,6 +92,40 @@ public class ExtFlightDelaysDAO {
 
 			conn.close();
 			return result;
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+			System.out.println("Errore connessione al database");
+			throw new RuntimeException("Error Connection Database");
+		}
+	}
+
+
+	public List<Rotta> getRotte(Integer compagnieMin, Map<Integer, Airport> airportsIdMap) {
+		String sql ="SELECT  f.ORIGIN_AIRPORT_ID, f.DESTINATION_AIRPORT_ID, COUNT(*) AS cntVoli, COUNT(distinct f.AIRLINE_ID) AS cntCompagnie  " + 
+				"FROM flights AS f " + 
+				"GROUP BY f.ORIGIN_AIRPORT_ID,  f.DESTINATION_AIRPORT_ID " + 
+				"HAVING cntCompagnie > ? ";
+		List<Rotta> rotte = new ArrayList<>();
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, compagnieMin);
+			
+			ResultSet rs = st.executeQuery();
+
+			while (rs.next()) {
+				Airport source = airportsIdMap.get(rs.getInt("ORIGIN_AIRPORT_ID"));
+				Airport destination =  airportsIdMap.get(rs.getInt("DESTINATION_AIRPORT_ID"));
+				
+				Rotta r = new Rotta(source,destination);
+				r.setPeso(rs.getInt("cntVoli"));
+				rotte.add(r);
+				}
+			
+
+			conn.close();
+			return rotte;
 
 		} catch (SQLException e) {
 			e.printStackTrace();

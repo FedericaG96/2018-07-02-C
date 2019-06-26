@@ -5,9 +5,12 @@
 package it.polito.tdp.extflightdelays;
 
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
+import it.polito.tdp.extflightdelays.model.Airport;
 import it.polito.tdp.extflightdelays.model.Model;
+import it.polito.tdp.extflightdelays.model.Vicino;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -18,7 +21,8 @@ import javafx.scene.control.TextField;
 public class ExtFlightDelaysController {
 
 	private Model model;
-
+	Airport partenza;
+	
     @FXML // ResourceBundle that was given to the FXMLLoader
     private ResourceBundle resources;
 
@@ -35,13 +39,13 @@ public class ExtFlightDelaysController {
     private Button btnAnalizza; // Value injected by FXMLLoader
 
     @FXML // fx:id="cmbBoxAeroportoPartenza"
-    private ComboBox<?> cmbBoxAeroportoPartenza; // Value injected by FXMLLoader
+    private ComboBox<Airport> cmbBoxAeroportoPartenza; // Value injected by FXMLLoader
 
     @FXML // fx:id="btnAeroportiConnessi"
     private Button btnAeroportiConnessi; // Value injected by FXMLLoader
 
     @FXML // fx:id="cmbBoxAeroportoDestinazione"
-    private ComboBox<?> cmbBoxAeroportoDestinazione; // Value injected by FXMLLoader
+    private ComboBox<Airport> cmbBoxAeroportoDestinazione; // Value injected by FXMLLoader
 
     @FXML // fx:id="numeroTratteTxtInput"
     private TextField numeroTratteTxtInput; // Value injected by FXMLLoader
@@ -51,17 +55,57 @@ public class ExtFlightDelaysController {
 
     @FXML
     void doAnalizzaAeroporti(ActionEvent event) {
+    	
+    	Integer compagnieMin = null;
+    	try {
+    		compagnieMin = Integer.parseInt(compagnieMinimo.getText());
+    	}catch(NumberFormatException e ) {
+    		txtResult.setText("Inserire numero di compagnie minimo");
+    		return;
+    	}
+    	
+    	model.creaGrafo(compagnieMin);
+    	txtResult.setText("grafo creato, vertici "+ model.getAeroporti().size());
+    	cmbBoxAeroportoPartenza.getItems().addAll(model.getAeroporti());
 
     }
 
     @FXML
     void doCalcolaAeroportiConnessi(ActionEvent event) {
-
+    	partenza = cmbBoxAeroportoPartenza.getValue();
+    	if(partenza == null) {
+    		txtResult.setText("Selezionare un aeroporto");
+    		return;
+    	}
+    	txtResult.clear();
+    	List<Vicino> connessi = model.getConnessi(partenza);
+    	for(Vicino a : connessi) {
+    		txtResult.appendText(a.getVicino()+" "+a.getDistanza()+"\n");
+    	}
+    	
+    	cmbBoxAeroportoDestinazione.getItems().addAll(model.getAeroporti());
     }
 
     @FXML
     void doCercaItinerario(ActionEvent event) {
-
+    	txtResult.clear();
+    	Airport destinazione = cmbBoxAeroportoDestinazione.getValue();
+    	if(destinazione == null||partenza == null) {
+    		txtResult.setText("Selezionare un aeroporto di partenza e di destinazione");
+    		return;
+    	}
+    	Integer numeroTratte=null;
+    	try{
+    		numeroTratte= Integer.parseInt(numeroTratteTxtInput.getText());
+    	}catch(NumberFormatException e ){
+    		txtResult.setText("Inserire un numero intero di tratte");
+    		return;
+    	}
+    	List<Airport> percorso = model.cercaPercorso(partenza,destinazione, numeroTratte);
+    	for(Airport a : percorso) {
+    		txtResult.appendText(a.toString()+"\n");
+    	}
+    	txtResult.appendText("Peso totale "+model.getPeso(percorso));
     }
 
     @FXML // This method is called by the FXMLLoader when initialization is complete
